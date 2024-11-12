@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  user_id          Int               @id @default(autoincrement())
+  username         String            @unique
+  email            String            @unique
+  passwordHash     String
+  profilePicture   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  friends          Friend[]          @relation("UserFriends")
+  userAchievements UserAchievement[]
+  Friend           Friend[]
+  Game             Game[]
+  Lobby            Lobby[]
+  LobbyPlayer      LobbyPlayer[]
+  MatchPlayer      MatchPlayer[]
+  ChatMessage      ChatMessage[]
+  Notification     Notification[]
+}
+
+model Friend {
+  user_id   Int
+  friend_id Int
+
+  user   User @relation(fields: [user_id], references: [user_id])
+  friend User @relation("UserFriends", fields: [friend_id], references: [user_id])
+
+  @@id([user_id, friend_id])
+}
+
+model UserAchievement {
+  user_id        Int
+  achievement_id Int
+
+  user        User        @relation(fields: [user_id], references: [user_id])
+  achievement Achievement @relation(fields: [achievement_id], references: [achievement_id])
+
+  @@id([user_id, achievement_id])
+}
+
+model Game {
+  game_id     Int      @id @default(autoincrement())
+  name        String
+  description String?
+  creatorId   Int?
+  gameType    String
+  maxPlayers  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator     User?         @relation(fields: [creatorId], references: [user_id])
+  lobbies     Lobby[]
+  Match       Match[]
+  Achievement Achievement[]
+}
+
+model Lobby {
+  lobby_id  Int      @id @default(autoincrement())
+  gameId    Int
+  hostId    Int?
+  isPrivate Boolean  @default(false)
+  status    String   @default("waiting")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  game     Game          @relation(fields: [gameId], references: [game_id])
+  host     User?         @relation(fields: [hostId], references: [user_id])
+  players  LobbyPlayer[]
+  messages ChatMessage[]
+  Match    Match[]
+}
+
+model LobbyPlayer {
+  lobbyId  Int
+  userId   Int
+  joinTime DateTime @default(now())
+  isReady  Boolean  @default(false)
+
+  lobby Lobby @relation(fields: [lobbyId], references: [lobby_id])
+  user  User  @relation(fields: [userId], references: [user_id])
+
+  @@id([lobbyId, userId])
+}
+
+model Match {
+  match_id  Int       @id @default(autoincrement())
+  lobbyId   Int?
+  gameId    Int
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  status    String    @default("in-progress")
+
+  lobby   Lobby?        @relation(fields: [lobbyId], references: [lobby_id])
+  game    Game          @relation(fields: [gameId], references: [game_id])
+  players MatchPlayer[]
+}
+
+model MatchPlayer {
+  matchId Int
+  userId  Int
+  score   Int
+
+  match Match @relation(fields: [matchId], references: [match_id])
+  user  User  @relation(fields: [userId], references: [user_id])
+
+  @@id([matchId, userId])
+}
+
+model Achievement {
+  achievement_id Int     @id @default(autoincrement())
+  title          String
+  description    String
+  gameId         Int?
+  criteria       String?
+
+  game             Game?             @relation(fields: [gameId], references: [game_id])
+  userAchievements UserAchievement[]
+}
+
+model ChatMessage {
+  message_id Int      @id @default(autoincrement())
+  lobbyId    Int
+  senderId   Int
+  message    String
+  createdAt  DateTime @default(now())
+
+  lobby  Lobby @relation(fields: [lobbyId], references: [lobby_id])
+  sender User  @relation(fields: [senderId], references: [user_id])
+}
+
+model Notification {
+  notification_id Int      @id @default(autoincrement())
+  userId          Int
+  type            String
+  data            Json
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [user_id])
+}
